@@ -32,7 +32,6 @@ class CreateAdminUserCommand extends Command
         $this
             ->addArgument('email', InputArgument::OPTIONAL, 'Admin email')
             ->addOption('password', null, InputOption::VALUE_OPTIONAL, 'Plain password (unsafe to pass in CI logs)')
-            ->addOption('no-interaction', 'n', InputOption::VALUE_NONE, 'Fail if data is missing instead of prompting')
         ;
     }
 

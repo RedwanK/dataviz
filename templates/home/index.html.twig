@@ -1,0 +1,17 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Accueil{% endblock %}
+
+{% block body %}
+    <div style="max-width: 480px; margin: 40px auto; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji';">
+        <h1 style="margin-bottom: 12px;">Bienvenue 👋</h1>
+        <p style="margin: 0 0 20px; color: #555;">Vous êtes sur la page d'accueil.</p>
+        {% if app.user %}
+            <p>Connecté en tant que <strong>{{ app.user.userIdentifier }}</strong>.</p>
+            <p><a href="{{ path('app_logout') }}">Se déconnecter</a></p>
+        {% else %}
+            <a href="{{ path('app_login') }}">Se connecter</a>
+        {% endif %}
+    </div>
+{% endblock %}
+

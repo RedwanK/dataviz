@@ -1,0 +1,36 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Connexion{% endblock %}
+
+{% block body %}
+<div style="max-width: 420px; margin: 60px auto; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji';">
+    <h1 style="margin-bottom: 18px;">Connexion</h1>
+
+    {% if error %}
+        <div style="background: #fdecea; color: #a61b1b; padding: 10px 12px; border: 1px solid #f5c2c7; border-radius: 6px; margin-bottom: 14px;">
+            {{ error.messageKey|trans(error.messageData, 'security') }}
+        </div>
+    {% endif %}
+
+    <form method="post" action="{{ path('app_login') }}" style="display: grid; gap: 12px;">
+        <div style="display: grid; gap: 6px;">
+            <label for="inputEmail">Email</label>
+            <input type="email" value="{{ last_username }}" name="email" id="inputEmail" autocomplete="email" required autofocus style="padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px;">
+        </div>
+        <div style="display: grid; gap: 6px;">
+            <label for="inputPassword">Mot de passe</label>
+            <input type="password" name="password" id="inputPassword" autocomplete="current-password" required style="padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px;">
+        </div>
+
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+
+        <button class="btn btn-primary" type="submit" style="padding: 10px 12px; border: none; border-radius: 6px; background: #0d6efd; color: #fff; cursor: pointer;">
+            Se connecter
+        </button>
+    </form>
+    <p style="margin-top: 16px; font-size: 14px; color: #666;">
+        Pas encore de compte ? Demandez à un admin de vous créer un accès.
+    </p>
+</div>
+{% endblock %}
+

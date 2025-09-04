@@ -3,32 +3,33 @@
 namespace App\Repository;
 
 use App\Entity\UserGroup;
-use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 
 /**
  * @extends ServiceEntityRepository<UserGroup>
  */
 class UserGroupRepository extends ServiceEntityRepository
 {
-    public function __construct(ManagerRegistry $registry)
+    public function __construct(ManagerRegistry $registry, protected EntityManagerInterface $em)
     {
         parent::__construct($registry, UserGroup::class);
     }
 
+
     public function save(UserGroup $entity, bool $flush = false): void
     {
-        $this->_em->persist($entity);
+        $this->em->persist($entity);
         if ($flush) {
-            $this->_em->flush();
+            $this->em->flush();
         }
     }
 
     public function remove(UserGroup $entity, bool $flush = false): void
     {
-        $this->_em->remove($entity);
-        if ($flush) {
-            $this->_em->flush();
+        $this->em->remove($entity);
+        if ($flush) {            $this->em->flush();
         }
     }
 }

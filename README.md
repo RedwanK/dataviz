@@ -17,31 +17,28 @@ Ce document résume l’architecture mise en place pour l’ingestion d’évèn
 ## Schéma (composants)
 
 ```mermaid
-flowchart LR
-  subgraph Edge[IoT / Edge]
+graph LR
+  subgraph Edge
     D[Devices]
   end
 
-  D -- MQTT publish --> MQ[MQTT Broker (Mosquitto)]
+  D --> MQ[MQTT Broker]
 
-  subgraph Bridge[Bridge MQTT]
+  subgraph Bridge
     direction TB
-    C[PHP MQTT Consumer\n(php-mqtt/client)]
+    C[PHP MQTT Consumer]
     W1[Messenger Worker #1]
-    Wn[Messenger Workers (N)]
+    Wn[Messenger Workers]
     SUP[Supervisor]
-    SUP -. supervise .-> C
-    SUP -. supervise .-> W1
-    SUP -. supervise .-> Wn
   end
 
-  subgraph Backend[Symfony App]
-    SVC[MqttMessageHandler\n(Service)]
-    MERC[Mercure Publisher]
+  subgraph Backend
+    SVC[MqttMessageHandler]
+    MERC[Mercure]
   end
 
   MQ --> C
-  C -- dispatch --> RED[(Redis\nMessenger transport)]
+  C --> RED[(Redis Queue)]
   RED --> W1
   RED --> Wn
   W1 --> SVC
@@ -53,8 +50,8 @@ flowchart LR
     PG[(PostgreSQL)]
   end
 
-  W1 -. erreurs .-> PG
-  Wn -. erreurs .-> PG
+  W1 --> PG
+  Wn --> PG
 ```
 
 ## Schéma (séquence d’un message)
@@ -62,21 +59,21 @@ flowchart LR
 ```mermaid
 sequenceDiagram
     participant Dev as Device
-    participant MQ as Mosquitto
-    participant C as MQTT Consumer
-    participant Q as Redis (Messenger)
-    participant W as Workers
-    participant H as App\Service\MqttMessageHandler
-    participant Me as Mercure
+    participant Broker as MQTT Broker
+    participant Consumer as PHP MQTT Consumer
+    participant Queue as Redis Queue
+    participant Worker as Messenger Worker
+    participant Handler as MqttMessageHandler
+    participant Hub as Mercure
 
-    Dev->>MQ: PUBLISH topic/payload
-    MQ-->>C: message(topic, payload)
-    C->>Q: Messenger dispatch(MqttMessage)
-    loop Parallèle (N workers)
-      Q-->>W: message
-      W->>H: __invoke(MqttMessage)
-      H->>Me: publish(Update)
-      Me-->>Dev: SSE/Web update (clients)
+    Dev->>Broker: PUBLISH topic/payload
+    Broker-->>Consumer: message(topic, payload)
+    Consumer->>Queue: dispatch(MqttMessage)
+    loop N workers
+      Queue-->>Worker: message
+      Worker->>Handler: handle(message)
+      Handler->>Hub: publish(update)
+      Hub-->>Dev: SSE/Web update
     end
 ```
 
@@ -119,4 +116,3 @@ sequenceDiagram
 - QoS 1/2 selon besoins et latences acceptables.
 - TLS + authentification côté MQTT et Redis (certificats/ACLs).
 - Supervision/metrics: exporter la santé des workers et la profondeur des files.
-

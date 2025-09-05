@@ -27,6 +27,13 @@ class MqttMessageHandler
             'received_at' => (new \DateTimeImmutable())->format(DATE_ATOM),
         ];
 
+        try {
+            $data = json_encode($data, JSON_THROW_ON_ERROR);
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            return;
+        }
+
         // Publish to Mercure: namespace topics under "mqtt/"
         $update = new Update(
             topics: [sprintf('mqtt/%s', $topic)],

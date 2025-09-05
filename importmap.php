@@ -25,4 +25,10 @@ return [
     '@hotwired/turbo' => [
         'version' => '7.3.0',
     ],
+    'bootstrap' => [
+        'path' => './assets/vendor/bootstrap/bootstrap.index.js',
+    ],
+    '@popperjs/core' => [
+        'path' => './assets/vendor/@popperjs/core/core.index.js',
+    ],
 ];

@@ -37,7 +37,7 @@ class MqttMessageHandler
         // Publish to Mercure: namespace topics under "mqtt/"
         $update = new Update(
             topics: [sprintf('mqtt/%s', $topic)],
-            data: json_encode($data, JSON_THROW_ON_ERROR)
+            data: $data
         );
 
         $this->hub->publish($update);

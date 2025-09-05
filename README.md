@@ -48,7 +48,7 @@ graph LR
   H1 --> RED
 
   subgraph Data
-    TS[(TimescaleDB\n(PostgreSQL))]
+    TS[(TimescaleDB / PostgreSQL)]
   end
 
   RED --> H2

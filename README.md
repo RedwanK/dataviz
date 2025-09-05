@@ -77,6 +77,17 @@ sequenceDiagram
     end
 ```
 
+## Fonctionnalités clés
+
+- Ingestion MQTT native (php-mqtt/client) et dispatch asynchrone via Symfony Messenger (transport Redis).
+- Workers parallèles supervisés (Supervisor) pour montée en charge.
+- Publication temps réel via Mercure.
+- Journalisation dédiée au bridge MQTT (canal `mqtt`).
+- UI d’administration (ROLE_ADMIN):
+  - CRUD Gateways.
+  - Liste des Devices, vue détaillée avec Tags, filtre par Gateway.
+- Front minimal: Turbo, Stimulus, Bootstrap chargés localement (AssetMapper).
+
 ## Déploiement & conteneurs
 
 - `database` (PostgreSQL): variables `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, volume `database_data`.
@@ -96,12 +107,84 @@ sequenceDiagram
 - Base de données: `DATABASE_URL` (dans l’app), et `DATABASE_URL` injecté au bridge pour les workers (doctrine / transport failed).
 - Workers (bridge): `WORKER_COUNT`, `CONSUME_TRANSPORTS` (défaut `async`), `CONSUMER_OPTIONS`.
 
+## Interfaces Web (ROLE_ADMIN)
+
+- Gateways
+  - Index: `/gateways`
+  - Nouveau: `/gateways/new`
+  - Édition: `/gateways/{id}/edit`
+- Devices
+  - Index: `/devices`
+  - Par gateway: `/devices/gateway/{id}` (filtré)
+  - Détail: `/devices/{id}` (liste des tags du device)
+
+Le menu d’accueil propose des liens vers Gateways et Devices. L’accès est restreint via `security.yaml` aux utilisateurs avec `ROLE_ADMIN`.
+
 ## Logs
 
 - Canal dédié `mqtt` (Monolog):
   - Dev: `var/log/mqtt.log` (séparé de `var/log/dev.log`).
   - Prod: sortie `stderr` (JSON) pour intégration dans les pipelines de logs.
 - Services taggés `mqtt`: `App\Mqtt\MqttConsumer`, `App\Service\MqttMessageHandler`.
+
+## Formats topic & payload (MQTT)
+
+- Topic attendu: `gateways/<gateway_id>/<device_id>`.
+  - Actuellement, la recherche gateway se fait par `id` (entier) conformément au besoin en cours.
+  - Le device est identifié/créé avec `Device.code = <device_id>` et rattaché à la gateway.
+
+- Payload JSON attendu:
+
+```
+{
+  "d": [
+    { "tag": "AI.0", "value": 12.00 },
+    { "tag": "AI.1", "value": 10 }
+  ],
+  "ts": "2017-12-22T08:05:20+0000" // optionnel
+}
+```
+
+- Tolérance aux virgules terminales: le handler tente une “sanitization” (suppression des virgules finales avant `}` ou `]`) si le JSON est invalide, puis réessaie le décodage.
+
+- Création/Mise à jour des Tags:
+  - `Tag.code` = `d[i].tag`
+  - `Tag.dataType` déduite de `d[i].value` → Postgres: int → `integer`, float → `double precision`, bool → `boolean`, string → `text`, array/object → `jsonb`, null → `text`.
+
+## Création à la volée (Devices & Tags)
+
+```mermaid
+sequenceDiagram
+    participant Dev as Device
+    participant Broker as MQTT Broker
+    participant Consumer as MQTT Consumer
+    participant Queue as Redis Queue
+    participant Worker as Messenger Worker
+    participant Handler as MQTT Handler
+    participant DB as PostgreSQL
+
+    Dev->>Broker: PUBLISH gateways/<gateway_id>/<device_id>\n{ d:[{tag,value}], ts }
+    Broker-->>Consumer: message(topic, payload)
+    Consumer->>Queue: dispatch(MqttMessage)
+    Queue-->>Worker: message
+    Worker->>Handler: handle(topic, payload)
+    Handler->>DB: find Gateway by id
+    alt Gateway not found
+        Handler-->>Worker: log error and stop
+    else Gateway found
+        Handler->>DB: find Device by (gateway, code)
+        alt Device not found
+            Handler->>DB: create Device and link to Gateway
+        end
+        Handler->>DB: for each entry in payload.d
+        Handler->>DB:  • find Tag by (device, code)
+        alt Tag not found
+            Handler->>DB:  • create Tag(code, dataType)
+        else Tag exists
+            Handler->>DB:  • update dataType if changed
+        end
+    end
+```
 
 ## Scalabilité & résilience
 

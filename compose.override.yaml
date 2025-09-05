@@ -20,7 +20,7 @@ services:
 ###> symfony/mercure-bundle ###
   mercure:
     ports:
-      - "${MERCURE_PORT:-8080}:80"
+      - "${MERCURE_PORT:-8080}:8080"
 ###< symfony/mercure-bundle ###
 
   mqtt:

@@ -1,0 +1,9 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Edit Gateway{% endblock %}
+
+{% block body %}
+  <h1 class="h3 mb-3">Edit Gateway</h1>
+  {% include 'gateway/_form.html.twig' with {form: form} %}
+{% endblock %}
+

@@ -1,0 +1,49 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Gateways{% endblock %}
+
+{% block body %}
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3">Gateways</h1>
+    <a class="btn btn-primary" href="{{ path('gateway_new') }}">New</a>
+  </div>
+
+  {% for label, messages in app.flashes %}
+    {% for message in messages %}
+      <div class="alert alert-{{ label }}">{{ message }}</div>
+    {% endfor %}
+  {% endfor %}
+
+  <table class="table table-striped align-middle">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Devices</th>
+        <th class="text-end">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for gateway in gateways %}
+        <tr>
+          <td>{{ gateway.id }}</td>
+          <td>{{ gateway.name }}</td>
+          <td>
+            <a href="{{ path('device_by_gateway', {id: gateway.id}) }}" class="link-primary text-decoration-none">
+              {{ gateway.devices|length }}
+            </a>
+          </td>
+          <td class="text-end">
+            <a href="{{ path('gateway_edit', {id: gateway.id}) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+            <form method="post" action="{{ path('gateway_delete', {id: gateway.id}) }}" class="d-inline" data-turbo-confirm="Delete this gateway?">
+              <input type="hidden" name="_token" value="{{ csrf_token('delete_gateway_' ~ gateway.id) }}">
+              <button class="btn btn-sm btn-outline-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4" class="text-center text-muted">No gateways</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

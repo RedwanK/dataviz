@@ -1,0 +1,46 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Devices{% endblock %}
+
+{% block body %}
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3">
+      Devices
+      {% if filter_gateway is defined %}
+        <small class="text-muted">for gateway: {{ filter_gateway.name }}</small>
+      {% endif %}
+    </h1>
+    <div>
+      {% if filter_gateway is defined %}
+        <a href="{{ path('device_index') }}" class="btn btn-sm btn-outline-secondary">Clear filter</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <table class="table table-striped align-middle">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Code</th>
+        <th>Gateway</th>
+        <th>Tags</th>
+        <th class="text-end">Details</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for device in devices %}
+        <tr>
+          <td>{{ device.id }}</td>
+          <td>{{ device.code ?? '—' }}</td>
+          <td>{{ device.gateway ? device.gateway.name : '—' }}</td>
+          <td>{{ device.tags|length }}</td>
+          <td class="text-end">
+            <a href="{{ path('device_show', {id: device.id}) }}" class="btn btn-sm btn-outline-primary">View</a>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="5" class="text-center text-muted">No devices</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

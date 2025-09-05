@@ -3,15 +3,28 @@
 {% block title %}Accueil{% endblock %}
 
 {% block body %}
-    <div style="max-width: 480px; margin: 40px auto; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji';">
-        <h1 style="margin-bottom: 12px;">Bienvenue 👋</h1>
-        <p style="margin: 0 0 20px; color: #555;">Vous êtes sur la page d'accueil.</p>
+    <div class="container" style="max-width: 720px; margin-top: 40px;">
+        <h1 class="mb-3">Bienvenue 👋</h1>
+        <p class="text-muted mb-4">Vous êtes sur la page d'accueil.</p>
         {% if app.user %}
-            <p>Connecté en tant que <strong>{{ app.user.userIdentifier }}</strong>.</p>
-            <p><a href="{{ path('app_logout') }}">Se déconnecter</a></p>
+            <p>Connecté en tant que <strong>{{ app.user.userIdentifier }}</strong>.
+                <a class="ms-2" href="{{ path('app_logout') }}">Se déconnecter</a>
+            </p>
         {% else %}
-            <a href="{{ path('app_login') }}">Se connecter</a>
+            <a class="btn btn-outline-primary btn-sm" href="{{ path('app_login') }}">Se connecter</a>
         {% endif %}
+
+        <hr class="my-4">
+        <h2 class="h5 mb-3">Menu</h2>
+        <div class="list-group">
+            <a href="{{ path('gateway_index') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                <span>Gateways</span>
+                <span class="badge bg-secondary">Admin</span>
+            </a>
+            <a href="{{ path('device_index') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                <span>Devices</span>
+                <span class="badge bg-secondary">Admin</span>
+            </a>
+        </div>
     </div>
 {% endblock %}
-

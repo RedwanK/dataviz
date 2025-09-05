@@ -46,4 +46,6 @@ stderr_logfile_maxbytes=0
 EOF
 
 echo "[mqtt-bridge] Starting Supervisor with ${WORKER_COUNT} workers on '${CONSUME_TRANSPORTS}'"
+echo "[mqtt-bridge] Warming up Symfony cache for APP_ENV='${APP_ENV:-dev}'"
+php /app/bin/console cache:warmup || echo "[mqtt-bridge] Cache warmup failed (continuing)"
 exec supervisord -c /etc/supervisor/supervisord.conf

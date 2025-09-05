@@ -11,7 +11,7 @@ Ce document résume l’architecture mise en place pour l’ingestion d’évèn
   - Supervisor pour gérer et relancer les processus.
 - Symfony (application): logique métier, handlers, publication vers Mercure.
 - Redis: transport par défaut de Messenger (file `messages`).
-- PostgreSQL: base applicative et transport d’échec (`failed`) de Messenger.
+- TimescaleDB (PostgreSQL): base applicative + hypertable pour séries temporelles.
 - Mercure: diffusion des mises à jour temps réel vers le front.
 
 ## Schéma (composants)
@@ -33,7 +33,8 @@ graph LR
   end
 
   subgraph Backend
-    SVC[MqttMessageHandler]
+    H1[MqttMessage Handler]
+    H2[PersistReadings Handler]
     MERC[Mercure]
   end
 
@@ -41,17 +42,18 @@ graph LR
   C --> RED[(Redis Queue)]
   RED --> W1
   RED --> Wn
-  W1 --> SVC
-  Wn --> SVC
-  SVC --> MERC
-  MERC --> F[Front Web]
+  W1 --> H1
+  Wn --> H1
+  H1 --> MERC
+  H1 --> RED
 
   subgraph Data
-    PG[(PostgreSQL)]
+    TS[(TimescaleDB\n(PostgreSQL))]
   end
 
-  W1 --> PG
-  Wn --> PG
+  RED --> H2
+  H2 --> TS
+  MERC --> F[Front Web]
 ```
 
 ## Schéma (séquence d’un message)
@@ -60,21 +62,24 @@ graph LR
 sequenceDiagram
     participant Dev as Device
     participant Broker as MQTT Broker
-    participant Consumer as PHP MQTT Consumer
-    participant Queue as Redis Queue
-    participant Worker as Messenger Worker
-    participant Handler as MqttMessageHandler
+    participant Consumer as MQTT Consumer
+    participant Q as Redis
+    participant W as Workers
+    participant H1 as Mqtt Handler
+    participant H2 as Persist Handler
+    participant TS as TimescaleDB
     participant Hub as Mercure
 
     Dev->>Broker: PUBLISH topic/payload
-    Broker-->>Consumer: message(topic, payload)
-    Consumer->>Queue: dispatch(MqttMessage)
-    loop N workers
-      Queue-->>Worker: message
-      Worker->>Handler: handle(message)
-      Handler->>Hub: publish(update)
-      Hub-->>Dev: SSE/Web update
-    end
+    Broker-->>Consumer: message(topic,payload)
+    Consumer->>Q: dispatch(MqttMessage)
+    Q-->>W: MqttMessage
+    W->>H1: handle(topic,payload)
+    H1->>Hub: publish(update)
+    H1->>Q: dispatch(TagReadingsBatch)
+    Q-->>W: TagReadingsBatch
+    W->>H2: persist(batch)
+    H2->>TS: INSERT readings
 ```
 
 ## Fonctionnalités clés
@@ -90,7 +95,7 @@ sequenceDiagram
 
 ## Déploiement & conteneurs
 
-- `database` (PostgreSQL): variables `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, volume `database_data`.
+- `database` (TimescaleDB/PostgreSQL): variables `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, volume `database_data`.
 - `redis`: Redis 7 avec AOF activé (`--appendonly yes`), volume `redis_data`.
 - `mqtt`: Mosquitto (broker), volumes `mosquitto_data`, `mosquitto_log`.
 - `mqtt-bridge`:
@@ -161,7 +166,7 @@ sequenceDiagram
     participant Queue as Redis Queue
     participant Worker as Messenger Worker
     participant Handler as MQTT Handler
-    participant DB as PostgreSQL
+    participant DB as TimescaleDB
 
     Dev->>Broker: PUBLISH gateways/<gateway_id>/<device_id>\n{ d:[{tag,value}], ts }
     Broker-->>Consumer: message(topic, payload)
@@ -185,6 +190,16 @@ sequenceDiagram
         end
     end
 ```
+
+## Stockage Time-series (TimescaleDB)
+
+- Hypertable `tag_reading` (colonnes clés)
+  - `time` timestamptz, `device_id`, `tag_id`, `gateway_id` (nullable)
+  - Valeurs typées: `value_num`, `value_bool`, `value_text`, `value_json`
+  - `value_type` pour guider la lecture/agrégation
+- Insertion asynchrone via `PersistTagReadingsHandler` après dispatch `TagReadingsBatchMessage`.
+- Index utile: `(tag_id, time desc)`; hypertable partitionnée par temps.
+- Politiques recommandées (ajoutables): rétention, compression, continuous aggregates.
 
 ## Scalabilité & résilience
 

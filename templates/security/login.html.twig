@@ -22,7 +22,7 @@
             <input type="password" name="password" id="inputPassword" autocomplete="current-password" required style="padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px;">
         </div>
 
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+        <input type="hidden" name="_csrf_token" data-controller="csrf-protection" value="{{ csrf_token('authenticate') }}">
 
         <button class="btn btn-primary" type="submit" style="padding: 10px 12px; border: none; border-radius: 6px; background: #0d6efd; color: #fff; cursor: pointer;">
             Se connecter

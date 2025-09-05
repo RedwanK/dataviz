@@ -25,7 +25,7 @@ services:
     restart: unless-stopped
     environment:
       # Disable HTTPS in dev and serve on port 80
-      SERVER_NAME: ${MERCURE_SERVER_NAME:-:80}
+      SERVER_NAME: ${MERCURE_SERVER_NAME:-:8080}
       MERCURE_PUBLISHER_JWT_KEY: ${MERCURE_PUBLISHER_JWT_KEY:-!ChangeThisMercureHubJWTSecretKey!}
       MERCURE_SUBSCRIBER_JWT_KEY: ${MERCURE_SUBSCRIBER_JWT_KEY:-!ChangeThisMercureHubJWTSecretKey!}
       # CORS origins for your Symfony app (no trailing slash)
@@ -34,7 +34,7 @@ services:
     # Development mode
     command: /usr/bin/caddy run --config /etc/caddy/dev.Caddyfile
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/healthz"]
+      test: ["CMD", "curl", "-f", "http://localhost/healthz:8080"]
       timeout: 5s
       retries: 5
       start_period: 60s

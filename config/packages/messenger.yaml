@@ -25,3 +25,4 @@ framework:
 
             # Route your messages to the transports
             'App\Message\MqttMessage': async
+            'App\Message\TagReadingsBatchMessage': async

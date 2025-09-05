@@ -4,7 +4,9 @@ namespace App\Service;
 
 use App\Entity\Device;
 use App\Entity\Tag;
+use App\Message\TagReadingsBatchMessage;
 use App\Repository\DeviceRepository;
+use App\Service\BusProvider;
 use App\Repository\GatewayRepository;
 use App\Repository\TagRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -18,6 +20,7 @@ class MqttMessageHandler
         private readonly DeviceRepository $deviceRepository,
         private readonly TagRepository $tagRepository,
         private readonly EntityManagerInterface $em,
+        private readonly BusProvider $busProvider,
     ) {
     }
 
@@ -74,6 +77,61 @@ class MqttMessageHandler
             $this->logger->error('Failed to upsert tags', [
                 'error' => $e->getMessage(),
             ]);
+        }
+
+        // Dispatch readings batch for TimescaleDB persistence
+        try {
+            $ts = null;
+            if (is_array($decoded) && isset($decoded['ts']) && is_string($decoded['ts'])) {
+                try { $ts = new \DateTimeImmutable($decoded['ts']); } catch (\Throwable) { $ts = null; }
+            }
+            $timestamp = $ts ?? new \DateTimeImmutable();
+
+            $readings = [];
+            if (is_array($decoded) && isset($decoded['d']) && is_array($decoded['d'])) {
+                foreach ($decoded['d'] as $item) {
+                    if (!is_array($item) || !isset($item['tag']) || !array_key_exists('value', $item)) {
+                        continue;
+                    }
+                    $code = (string) $item['tag'];
+                    $value = $item['value'];
+                    $dataType = $this->mapPhpValueToPostgresType($value);
+                    $tag = $this->tagRepository->findOneBy(['device' => $device, 'code' => $code]);
+                    if (!$tag) { continue; }
+
+                    $row = [
+                        'tag_id' => $tag->getId(),
+                        'device_id' => $device->getId(),
+                        'gateway_id' => $gateway->getId(),
+                        'value_type' => $dataType,
+                        'value_num' => null,
+                        'value_bool' => null,
+                        'value_text' => null,
+                        'value_json' => null,
+                    ];
+                    if (is_int($value) || is_float($value)) {
+                        $row['value_num'] = (float) $value;
+                    } elseif (is_bool($value)) {
+                        $row['value_bool'] = $value;
+                    } elseif (is_string($value)) {
+                        $row['value_text'] = $value;
+                    } elseif (is_array($value) || is_object($value)) {
+                        $row['value_json'] = $value;
+                    } else {
+                        $row['value_text'] = null;
+                    }
+                    $readings[] = $row;
+                }
+            }
+
+            if ($readings !== []) {
+                // Use Messenger via BusProvider in producer or auto wire bus in command
+                // Here we reuse the command-dispatch path already in place via message bus
+                // We'll dispatch through the console path upstream; in service we assume standard bus is available via handler context
+                $this->busProvider->bus()->dispatch(new TagReadingsBatchMessage($timestamp, $readings));
+            }
+        } catch (\Throwable $e) {
+            $this->logger->error('Failed to prepare readings batch', ['error' => $e->getMessage()]);
         }
 
         try {

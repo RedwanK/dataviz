@@ -1,8 +1,10 @@
 FROM php:8.2-cli-alpine
 
-# Install tools + PostgreSQL driver for PHP (pdo_pgsql)
-RUN apk add --no-cache mosquitto-clients bash supervisor postgresql-dev $PHPIZE_DEPS \
+# Install tools + drivers: pdo_pgsql and redis
+RUN apk add --no-cache mosquitto-clients bash supervisor postgresql-dev hiredis-dev $PHPIZE_DEPS \
     && docker-php-ext-install -j"$(nproc)" pdo_pgsql \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
     && apk del --no-network $PHPIZE_DEPS
 
 WORKDIR /app

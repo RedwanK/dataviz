@@ -22,8 +22,8 @@ port=127.0.0.1:9001
 [supervisorctl]
 serverurl=http://127.0.0.1:9001
 
-[program:mqtt_subscriber]
-command=/usr/local/bin/mqtt_subscriber.sh
+[program:mqtt_php_consumer]
+command=php /app/bin/mqtt-consumer.php
 autostart=true
 autorestart=true
 startretries=3

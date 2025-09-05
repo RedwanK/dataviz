@@ -3,13 +3,10 @@
 namespace App\Service;
 
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Mercure\HubInterface;
-use Symfony\Component\Mercure\Update;
 
 class MqttMessageHandler
 {
     public function __construct(
-        private readonly HubInterface $hub,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -27,20 +24,10 @@ class MqttMessageHandler
             'received_at' => (new \DateTimeImmutable())->format(DATE_ATOM),
         ];
 
-        try {
-            $data = json_encode($data, JSON_THROW_ON_ERROR);
-        } catch (\Exception $e) {
-            $this->logger->error($e->getMessage());
-            return;
-        }
+        dump($data);
+        $this->logger->info(json_encode($data['payload']));
 
-        // Publish to Mercure: namespace topics under "mqtt/"
-        $update = new Update(
-            topics: [sprintf('mqtt/%s', $topic)],
-            data: $data
-        );
-
-        $this->hub->publish($update);
+        return;
     }
 
     private function decodePayload(string $payload): mixed

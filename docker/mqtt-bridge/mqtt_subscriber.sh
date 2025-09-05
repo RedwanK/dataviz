@@ -6,24 +6,28 @@ set -eu
 : "${MQTT_PORT:=1883}"
 : "${MQTT_USERNAME:=}"
 : "${MQTT_PASSWORD:=}"
-: "${MQTT_TOPICS:=#}"
 
-PHP_CONSOLE="php /app/bin/console app:mqtt:handle"
+# Build mosquitto_sub args safely (POSIX sh)
+# Use JSON output so payloads with newlines/quotes are escaped in a single line
+set -- -h "${MQTT_HOST}" -p "${MQTT_PORT}" -F '{"t":"%t","p":%j}'
 
-SUB_ARGS="-h ${MQTT_HOST} -p ${MQTT_PORT} -t ${MQTT_TOPICS} -F '%t|||%p'"
+# Auth if provided
 if [ -n "${MQTT_USERNAME}" ] && [ -n "${MQTT_PASSWORD}" ]; then
-  SUB_ARGS="$SUB_ARGS -u ${MQTT_USERNAME} -P ${MQTT_PASSWORD}"
+  set -- "$@" -u "${MQTT_USERNAME}" -P "${MQTT_PASSWORD}"
 fi
 
-echo "[mqtt-bridge] Subscribing to '${MQTT_TOPICS}' on ${MQTT_HOST}:${MQTT_PORT}"
+# Support multiple topics separated by commas or spaces
+topics="gateways/+"
+if [ -z "${topics}" ]; then
+  topics="#"
+fi
+topics=$(printf %s "$topics" | tr ',' ' ')
 
-# shellcheck disable=SC2086
-mosquitto_sub $SUB_ARGS | while IFS= read -r line; do
-  topic=${line%|||*}
-  payload=${line#*|||}
-  # Dispatch message to Messenger via console command
-  if [ -n "$topic" ]; then
-    $PHP_CONSOLE "$topic" "$payload" || true
-  fi
+for t in $topics; do
+  set -- "$@" -t "$t"
 done
 
+echo "[mqtt-bridge] Subscribing to topics: $(printf '%s ' $topics) on ${MQTT_HOST}:${MQTT_PORT} (JSON line format)"
+
+# Keep a single Symfony kernel alive in the producer, avoiding per-message boot
+exec mosquitto_sub "$@" | php /app/bin/mqtt-producer.php

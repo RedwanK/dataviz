@@ -1,6 +1,7 @@
 monolog:
     channels:
         - deprecation # Deprecations are logged in the dedicated "deprecation" channel when it exists
+        - mqtt
 
 when@dev:
     monolog:
@@ -9,7 +10,12 @@ when@dev:
                 type: stream
                 path: "%kernel.logs_dir%/%kernel.environment%.log"
                 level: debug
-                channels: ["!event"]
+                channels: ["!event", "!mqtt"]
+            mqtt:
+                type: stream
+                path: "%kernel.logs_dir%/mqtt.log"
+                level: debug
+                channels: ["mqtt"]
             # uncomment to get logging in your browser
             # you may have to allow bigger header sizes in your Web server configuration
             #firephp:
@@ -50,6 +56,12 @@ when@prod:
                 type: stream
                 path: php://stderr
                 level: debug
+                formatter: monolog.formatter.json
+            mqtt:
+                type: stream
+                path: php://stderr
+                level: info
+                channels: ["mqtt"]
                 formatter: monolog.formatter.json
             console:
                 type: console

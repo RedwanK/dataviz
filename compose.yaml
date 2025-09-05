@@ -63,6 +63,7 @@ services:
       - mqtt
       - mercure
       - database
+      - redis
     environment:
       APP_ENV: ${APP_ENV:-dev}
       # Use internal Docker DNS to reach Mercure from inside the container
@@ -82,6 +83,13 @@ services:
     volumes:
       - ./:/app:rw
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+
 volumes:
 ###> doctrine/doctrine-bundle ###
   database_data:
@@ -94,3 +102,4 @@ volumes:
 
   mosquitto_data:
   mosquitto_log:
+  redis_data:

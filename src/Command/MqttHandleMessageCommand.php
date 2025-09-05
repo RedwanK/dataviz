@@ -2,12 +2,13 @@
 
 namespace App\Command;
 
-use App\Service\MqttMessageHandler;
+use App\Message\MqttMessage;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 #[AsCommand(
     name: 'app:mqtt:handle',
@@ -15,7 +16,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 )]
 class MqttHandleMessageCommand extends Command
 {
-    public function __construct(private readonly MqttMessageHandler $handler)
+    public function __construct(private readonly MessageBusInterface $bus)
     {
         parent::__construct();
     }
@@ -32,10 +33,10 @@ class MqttHandleMessageCommand extends Command
         $topic = (string) $input->getArgument('topic');
         $payload = (string) $input->getArgument('payload');
 
-        $this->handler->handleMessage($topic, $payload);
-        $output->writeln(sprintf('<info>Handled</info> %s', $topic));
+        // Dispatch to async transport via Messenger
+        $this->bus->dispatch(new MqttMessage($topic, $payload));
+        $output->writeln(sprintf('<info>Dispatched</info> %s', $topic));
 
         return Command::SUCCESS;
     }
 }
-

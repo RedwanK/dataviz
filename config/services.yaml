@@ -16,5 +16,18 @@ services:
     App\:
         resource: '../src/'
 
+    # Public provider to access the default message bus from long-lived scripts
+    App\Service\BusProvider:
+        public: true
+    
+    App\Mqtt\MqttConsumer:
+        public: true
+        tags:
+            - { name: monolog.logger, channel: mqtt }
+
+    App\Service\MqttMessageHandler:
+        tags:
+            - { name: monolog.logger, channel: mqtt }
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

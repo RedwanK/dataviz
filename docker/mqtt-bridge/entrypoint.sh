@@ -1,30 +1,49 @@
 #!/usr/bin/env sh
 set -eu
 
-# Env with defaults
-: "${MQTT_HOST:=mqtt}"
-: "${MQTT_PORT:=1883}"
-: "${MQTT_USERNAME:=}"
-: "${MQTT_PASSWORD:=}"
-: "${MQTT_TOPICS:=#}"
+# Defaults
+: "${WORKER_COUNT:=4}"
+: "${CONSUME_TRANSPORTS:=async}"
+: "${CONSUMER_OPTIONS:=--time-limit=3600 --memory-limit=256M --no-interaction}"
 
-PHP_CONSOLE="php /app/bin/console app:mqtt:handle"
+# Ensure supervisor dirs
+mkdir -p /etc/supervisor/conf.d
 
-SUB_ARGS="-h ${MQTT_HOST} -p ${MQTT_PORT} -t ${MQTT_TOPICS} -F '%t|||%p'"
-if [ -n "${MQTT_USERNAME}" ] && [ -n "${MQTT_PASSWORD}" ]; then
-  SUB_ARGS="$SUB_ARGS -u ${MQTT_USERNAME} -P ${MQTT_PASSWORD}"
-fi
+cat > /etc/supervisor/supervisord.conf <<EOF
+[supervisord]
+nodaemon=true
+user=root
+logfile=/dev/stdout
+logfile_maxbytes=0
 
-echo "[mqtt-bridge] Subscribing to '${MQTT_TOPICS}' on ${MQTT_HOST}:${MQTT_PORT}"
+[inet_http_server]
+port=127.0.0.1:9001
 
-# shellcheck disable=SC2086
-mosquitto_sub $SUB_ARGS | while IFS= read -r line; do
-  topic=${line%|||*}
-  payload=${line#*|||}
-  # Call Symfony command per message
-  # Avoid flooding logs if empty
-  if [ -n "$topic" ]; then
-    $PHP_CONSOLE "$topic" "$payload" || true
-  fi
-done
+[supervisorctl]
+serverurl=http://127.0.0.1:9001
 
+[program:mqtt_subscriber]
+command=/usr/local/bin/mqtt_subscriber.sh
+autostart=true
+autorestart=true
+startretries=3
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+
+[program:messenger_consumer]
+command=php /app/bin/console messenger:consume ${CONSUME_TRANSPORTS} ${CONSUMER_OPTIONS}
+process_name=%(program_name)s_%(process_num)02d
+numprocs=${WORKER_COUNT}
+autostart=true
+autorestart=true
+startretries=3
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+EOF
+
+echo "[mqtt-bridge] Starting Supervisor with ${WORKER_COUNT} workers on '${CONSUME_TRANSPORTS}'"
+exec supervisord -c /etc/supervisor/supervisord.conf
